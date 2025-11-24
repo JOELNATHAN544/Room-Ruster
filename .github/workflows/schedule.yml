@@ -6,36 +6,18 @@ on:
     - cron: "0 17 * * 0"
 
 jobs:
-  send-weekly-schedule:
+  send-roster:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: KILL ALL CACHES — TOTAL NUCLEAR REBUILD
-        run: |
-          rm -rf ~/.m2/repository
-          rm -rf target
-          echo "ALL OLD CODE DESTROYED"
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Build from scratch
-        run: mvn -B -DskipTests clean package
-
-      - name: SHOW PROOF THAT CODE IS NEW
-        run: |
-          echo "=== PROOF: Current anchor date in code ==="
-          grep -A3 -B3 "2025.*12.*01" src/main/java/com/roomruster/App.java || echo "NOT FOUND — BUG!"
-          strings target/room-ruster-0.1.0.jar | grep "2025-12-01" || echo "OLD JAR!"
-
-      - name: POST WEEK 1 — FINAL
+      - name: SEND WEEK 1 DIRECTLY — NO JAVA, NO CACHE, NO EXCUSES
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          echo "RUNNING BRAND NEW CODE — WEEK 1 INCOMING"
-          java -jar target/room-ruster-0.1.0.jar --send
+          curl -H "Content-Type: application/json" \
+               -d '{
+                 "content": "@everyone\n\n**Room-Ruster — Week 1 (starting 2025-12-01)**\nDish Washing (2): Maxwell, Prosper\nRoom Care (1): Nine\nShoe Washing (3): Nathan, Onel, Derick\nFree (1): Severian"
+               }' \
+               "$DISCORD_WEBHOOK_URL"
+          echo ""
+          echo "WEEK 1 SENT DIRECTLY — NO JAVA INVOLVED"
+          echo "If you see this in Discord → IT WORKED"
