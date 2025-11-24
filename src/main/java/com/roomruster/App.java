@@ -114,26 +114,14 @@ public class App {
     private static void sendThisWeek(RotationEngine engine, LocalDate start) throws Exception {
         String webhook = System.getenv("DISCORD_WEBHOOK_URL");
         if (webhook == null || webhook.isBlank()) {
-            System.err.println("DISCORD_WEBHOOK_URL env var not set!");
+            System.err.println("DISCORD_WEBHOOK_URL not set!");
             System.exit(2);
         }
 
-        // CRITICAL FIX: Always use START_DATE from environment — no fallback!
-        String envStart = System.getenv("START_DATE");
-        if (envStart == null || envStart.isBlank()) {
-            System.err.println("ERROR: START_DATE environment variable is missing!");
-            System.exit(3);
-        }
-        LocalDate anchorDate = LocalDate.parse(envStart.trim());
-
-        // Always post the week that starts on the NEXT Monday
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-
-        // Calculate how many full weeks have passed since anchor → this is our week
-        // index
-        long weeksSinceAnchor = ChronoUnit.WEEKS.between(anchorDate, nextMonday);
-        int weekIndex = (int) weeksSinceAnchor + 1;
-        LocalDate weekStart = anchorDate.plusWeeks(weeksSinceAnchor);
+        long weeks = ChronoUnit.WEEKS.between(start, nextMonday);
+        int weekIndex = (int) weeks + 1;
+        LocalDate weekStart = start.plusWeeks(weeks);
 
         sendFor(engine, webhook, weekIndex, weekStart);
     }
