@@ -1,16 +1,21 @@
 package com.roomruster;
 
-import com.roomruster.core.RotationEngine;
-import com.roomruster.core.WeekSchedule;
-import com.roomruster.notify.DiscordNotifier;
-
-import java.time.*;
+import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Locale;
+import java.time.temporal.TemporalAdjusters;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import com.roomruster.core.RotationEngine;
+import com.roomruster.core.WeekSchedule;
+import com.roomruster.notify.DiscordNotifier;
 
 public class App {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -38,8 +43,9 @@ public class App {
                 sendThisWeek(engine, start);
             }
             case "--daemon" -> {
-                LocalTime at = getTimeFromArgs(args, LocalTime.of(8, 0));
-                runDaemon(engine, start, at);
+                DayOfWeek day = getDayOfWeekFromArgs(args, DayOfWeek.SUNDAY);
+                LocalTime time = getTimeFromArgs(args, LocalTime.of(18, 0));
+                runDaemon(engine, start, day, time);
             }
             case "--daemon-sim" -> {
                 int interval = getIntervalSecondsFromArgs(args, 5);
@@ -55,12 +61,12 @@ public class App {
                 "Usage:\n" +
                 "  java -jar room-ruster.jar --print N [--start YYYY-MM-DD]\n" +
                 "  java -jar room-ruster.jar --send [--start YYYY-MM-DD]\n" +
-                "  java -jar room-ruster.jar --daemon [--start YYYY-MM-DD] [--time HH:mm]\n" +
+                "  java -jar room-ruster.jar --daemon [--start YYYY-MM-DD] [--day SUNDAY] [--time 18:00]\n" +
                 "  java -jar room-ruster.jar --daemon-sim [--start YYYY-MM-DD] [--start-week N] [--interval-seconds N]\n" +
                 "Notes:\n" +
                 "  --start sets the anchor Monday for week 1. Default from env START_DATE or next upcoming Monday.\n" +
                 "  --send posts the current week's schedule to the Discord webhook in DISCORD_WEBHOOK_URL.\n" +
-                "  --daemon runs a weekly poster every Monday at --time (default 08:00) to DISCORD_WEBHOOK_URL.\n" +
+                "  --daemon runs a weekly poster on a schedule (default Sunday 18:00) to DISCORD_WEBHOOK_URL.\n" +
                 "  --daemon-sim posts on a fixed interval (default 5s) and advances week index each tick (demo mode).\n" +
                 "     Use --interval-seconds to control pace and --start-week to set initial week index.");
     }
@@ -104,20 +110,23 @@ public class App {
     }
 
     private static void sendThisWeek(RotationEngine engine, LocalDate start) throws Exception {
-        String webhook = System.getenv("DISCORD_WEBHOOK_URL");
-        if (webhook == null || webhook.isBlank()) {
-            System.err.println("DISCORD_WEBHOOK_URL env var not set. Create a Discord channel webhook and set the URL.");
-            System.exit(2);
-        }
-        LocalDate today = LocalDate.now();
-        int weekIndex = computeCurrentWeekIndex(start);
-        LocalDate weekStart = start.plusWeeks(weekIndex - 1);
-        sendFor(engine, webhook, weekIndex, weekStart);
+    String webhook = System.getenv("DISCORD_WEBHOOK_URL");
+    if (webhook == null || webhook.isBlank()) {
+        System.err.println("DISCORD_WEBHOOK_URL env var not set!");
+        System.exit(2);
     }
+
+    // Always post the week that starts on the next Monday
+    LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+    int weekIndex = (int) ChronoUnit.WEEKS.between(start, nextMonday) + 1;
+    LocalDate weekStart = start.plusWeeks(weekIndex - 1);
+
+    sendFor(engine, webhook, weekIndex, weekStart);
+}
 
     private static String formatWeeklySchedule(int weekIndex, LocalDate weekStart, WeekSchedule sc) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Room-Ruster — Week ").append(weekIndex)
+        sb.append("@everyone\n\nRoom-Ruster — Week ").append(weekIndex)
           .append(" (starting ").append(weekStart.format(DATE_FMT)).append(")\n");
         sb.append("Dish Washing (2): ").append(String.join(", ", sc.dishWashers())).append("\n");
         sb.append("Room Care (1): ").append(sc.roomCare()).append("\n");
@@ -126,20 +135,22 @@ public class App {
         return sb.toString();
     }
 
-    private static void runDaemon(RotationEngine engine, LocalDate start, LocalTime time) throws Exception {
+    private static void runDaemon(RotationEngine engine, LocalDate start, DayOfWeek day, LocalTime time) throws Exception {
         String webhook = System.getenv("DISCORD_WEBHOOK_URL");
         if (webhook == null || webhook.isBlank()) {
             System.err.println("DISCORD_WEBHOOK_URL env var not set. Create a Discord channel webhook and set the URL.");
             System.exit(2);
         }
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        long initialDelay = computeInitialDelayToNextMonday(time);
+        long initialDelay = computeInitialDelay(day, time);
         long period = TimeUnit.DAYS.toSeconds(7);
-        System.out.println("Daemon started. First post in " + initialDelay + " seconds; then every 7 days at " + time + ".");
+        System.out.println("Daemon started. First post in " + initialDelay + " seconds; then every 7 days at " + time + " on " + day + ".");
         ses.scheduleAtFixedRate(() -> {
             try {
-                LocalDate monday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-                int weekIndex = (int) (ChronoUnit.WEEKS.between(start, monday) + 1);
+                // The week index should be for the *upcoming* week.
+                LocalDate today = LocalDate.now();
+                LocalDate upcomingMonday = today.with(java.time.temporal.TemporalAdjusters.next(DayOfWeek.MONDAY));
+                int weekIndex = (int) (ChronoUnit.WEEKS.between(start, upcomingMonday) + 1);
                 LocalDate weekStart = start.plusWeeks(weekIndex - 1);
                 sendFor(engine, webhook, weekIndex, weekStart);
             } catch (Exception e) {
@@ -148,10 +159,10 @@ public class App {
         }, initialDelay, period, TimeUnit.SECONDS);
     }
 
-    private static long computeInitialDelayToNextMonday(LocalTime at) {
+    private static long computeInitialDelay(DayOfWeek day, LocalTime at) {
         ZoneId zone = ZoneId.systemDefault();
         ZonedDateTime now = ZonedDateTime.now(zone);
-        ZonedDateTime next = now.with(java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY))
+        ZonedDateTime next = now.with(java.time.temporal.TemporalAdjusters.nextOrSame(day))
                 .withHour(at.getHour()).withMinute(at.getMinute()).withSecond(0).withNano(0);
         if (!next.isAfter(now)) {
             next = next.plusWeeks(1);
@@ -165,6 +176,19 @@ public class App {
         DiscordNotifier notifier = new DiscordNotifier(webhook);
         notifier.send(content);
         System.out.println("Sent schedule for week " + weekIndex + " (starting " + weekStart + ") to Discord.");
+    }
+
+    private static DayOfWeek getDayOfWeekFromArgs(String[] args, DayOfWeek def) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--day".equals(args[i])) {
+                return DayOfWeek.valueOf(args[i+1].toUpperCase());
+            }
+        }
+        String env = System.getenv("POST_DAY");
+        if (env != null && !env.isBlank()) {
+            return DayOfWeek.valueOf(env.trim().toUpperCase());
+        }
+        return def;
     }
 
     private static LocalTime getTimeFromArgs(String[] args, LocalTime def) {
@@ -222,9 +246,10 @@ public class App {
         ses.scheduleAtFixedRate(() -> {
             try {
                 int weekIndex = counter[0]++;
-                LocalDate weekStart = start.plusWeeks(weekIndex - 1);
-                WeekSchedule sc = engine.getWeekSchedule(weekIndex);
-                String content = formatWeeklySchedule(weekIndex, weekStart, sc);
+                // In sim, we announce the *upcoming* week, consistent with Sunday announcements.
+                LocalDate weekStart = start.plusWeeks(weekIndex);
+                WeekSchedule sc = engine.getWeekSchedule(weekIndex + 1);
+                String content = formatWeeklySchedule(weekIndex + 1, weekStart, sc);
                 System.out.println(content);
                 if (webhook != null && !webhook.isBlank()) {
                     new DiscordNotifier(webhook).send(content);
