@@ -1,13 +1,14 @@
-name: TEST - 30sec Rotation (Real Rotation!)
+name: TEST - 30sec Rotation (REAL ROTATION!)
 
 on:
-  workflow_dispatch:   # Manual start
+  workflow_dispatch:
   schedule:
     - cron: '*/30 * * * *'   # Every 30 seconds
 
 jobs:
   test-rotation:
     runs-on: ubuntu-latest
+    timeout-minutes: 360   # Allow up to 6 hours
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,5 +26,5 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          echo "TEST MODE: New roster every 30 seconds with real rotation!"
+          echo "Starting 30-second live rotation test..."
           java -jar target/room-ruster-0.1.0.jar --daemon-sim --interval-seconds 30 --start-week 1
