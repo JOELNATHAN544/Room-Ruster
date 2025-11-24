@@ -118,10 +118,22 @@ public class App {
             System.exit(2);
         }
 
-        // Always post the week that starts on the next Monday
+        // CRITICAL FIX: Always use START_DATE from environment — no fallback!
+        String envStart = System.getenv("START_DATE");
+        if (envStart == null || envStart.isBlank()) {
+            System.err.println("ERROR: START_DATE environment variable is missing!");
+            System.exit(3);
+        }
+        LocalDate anchorDate = LocalDate.parse(envStart.trim());
+
+        // Always post the week that starts on the NEXT Monday
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-        int weekIndex = (int) ChronoUnit.WEEKS.between(start, nextMonday) + 1;
-        LocalDate weekStart = start.plusWeeks(weekIndex - 1);
+
+        // Calculate how many full weeks have passed since anchor → this is our week
+        // index
+        long weeksSinceAnchor = ChronoUnit.WEEKS.between(anchorDate, nextMonday);
+        int weekIndex = (int) weeksSinceAnchor + 1;
+        LocalDate weekStart = anchorDate.plusWeeks(weeksSinceAnchor);
 
         sendFor(engine, webhook, weekIndex, weekStart);
     }
