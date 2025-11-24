@@ -62,12 +62,14 @@ public class App {
                 "  java -jar room-ruster.jar --print N [--start YYYY-MM-DD]\n" +
                 "  java -jar room-ruster.jar --send [--start YYYY-MM-DD]\n" +
                 "  java -jar room-ruster.jar --daemon [--start YYYY-MM-DD] [--day SUNDAY] [--time 18:00]\n" +
-                "  java -jar room-ruster.jar --daemon-sim [--start YYYY-MM-DD] [--start-week N] [--interval-seconds N]\n" +
+                "  java -jar room-ruster.jar --daemon-sim [--start YYYY-MM-DD] [--start-week N] [--interval-seconds N]\n"
+                +
                 "Notes:\n" +
                 "  --start sets the anchor Monday for week 1. Default from env START_DATE or next upcoming Monday.\n" +
                 "  --send posts the current week's schedule to the Discord webhook in DISCORD_WEBHOOK_URL.\n" +
                 "  --daemon runs a weekly poster on a schedule (default Sunday 18:00) to DISCORD_WEBHOOK_URL.\n" +
-                "  --daemon-sim posts on a fixed interval (default 5s) and advances week index each tick (demo mode).\n" +
+                "  --daemon-sim posts on a fixed interval (default 5s) and advances week index each tick (demo mode).\n"
+                +
                 "     Use --interval-seconds to control pace and --start-week to set initial week index.");
     }
 
@@ -75,7 +77,7 @@ public class App {
         LocalDate start = null;
         for (int i = 0; i < args.length - 1; i++) {
             if ("--start".equals(args[i])) {
-                start = LocalDate.parse(args[i+1], DATE_FMT);
+                start = LocalDate.parse(args[i + 1], DATE_FMT);
                 break;
             }
         }
@@ -110,41 +112,44 @@ public class App {
     }
 
     private static void sendThisWeek(RotationEngine engine, LocalDate start) throws Exception {
-    String webhook = System.getenv("DISCORD_WEBHOOK_URL");
-    if (webhook == null || webhook.isBlank()) {
-        System.err.println("DISCORD_WEBHOOK_URL env var not set!");
-        System.exit(2);
+        String webhook = System.getenv("DISCORD_WEBHOOK_URL");
+        if (webhook == null || webhook.isBlank()) {
+            System.err.println("DISCORD_WEBHOOK_URL env var not set!");
+            System.exit(2);
+        }
+
+        // Always post the week that starts on the next Monday
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        int weekIndex = (int) ChronoUnit.WEEKS.between(start, nextMonday) + 1;
+        LocalDate weekStart = start.plusWeeks(weekIndex - 1);
+
+        sendFor(engine, webhook, weekIndex, weekStart);
     }
-
-    // Always post the week that starts on the next Monday
-    LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-    int weekIndex = (int) ChronoUnit.WEEKS.between(start, nextMonday) + 1;
-    LocalDate weekStart = start.plusWeeks(weekIndex - 1);
-
-    sendFor(engine, webhook, weekIndex, weekStart);
-}
 
     private static String formatWeeklySchedule(int weekIndex, LocalDate weekStart, WeekSchedule sc) {
         StringBuilder sb = new StringBuilder();
         sb.append("@everyone\n\nRoom-Ruster — Week ").append(weekIndex)
-          .append(" (starting ").append(weekStart.format(DATE_FMT)).append(")\n");
+                .append(" (starting ").append(weekStart.format(DATE_FMT)).append(")\n");
         sb.append("Dish Washing (2): ").append(String.join(", ", sc.dishWashers())).append("\n");
         sb.append("Room Care (1): ").append(sc.roomCare()).append("\n");
         sb.append("Shoe Washing (3): ").append(String.join(", ", sc.shoeWashers())).append("\n");
-        sb.append("Free ("+sc.freePeople().size()+"): ").append(String.join(", ", sc.freePeople())).append("\n");
+        sb.append("Free (" + sc.freePeople().size() + "): ").append(String.join(", ", sc.freePeople())).append("\n");
         return sb.toString();
     }
 
-    private static void runDaemon(RotationEngine engine, LocalDate start, DayOfWeek day, LocalTime time) throws Exception {
+    private static void runDaemon(RotationEngine engine, LocalDate start, DayOfWeek day, LocalTime time)
+            throws Exception {
         String webhook = System.getenv("DISCORD_WEBHOOK_URL");
         if (webhook == null || webhook.isBlank()) {
-            System.err.println("DISCORD_WEBHOOK_URL env var not set. Create a Discord channel webhook and set the URL.");
+            System.err
+                    .println("DISCORD_WEBHOOK_URL env var not set. Create a Discord channel webhook and set the URL.");
             System.exit(2);
         }
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
         long initialDelay = computeInitialDelay(day, time);
         long period = TimeUnit.DAYS.toSeconds(7);
-        System.out.println("Daemon started. First post in " + initialDelay + " seconds; then every 7 days at " + time + " on " + day + ".");
+        System.out.println("Daemon started. First post in " + initialDelay + " seconds; then every 7 days at " + time
+                + " on " + day + ".");
         ses.scheduleAtFixedRate(() -> {
             try {
                 // The week index should be for the *upcoming* week.
@@ -170,7 +175,8 @@ public class App {
         return Duration.between(now, next).getSeconds();
     }
 
-    private static void sendFor(RotationEngine engine, String webhook, int weekIndex, LocalDate weekStart) throws Exception {
+    private static void sendFor(RotationEngine engine, String webhook, int weekIndex, LocalDate weekStart)
+            throws Exception {
         WeekSchedule schedule = engine.getWeekSchedule(weekIndex);
         String content = formatWeeklySchedule(weekIndex, weekStart, schedule);
         DiscordNotifier notifier = new DiscordNotifier(webhook);
@@ -181,7 +187,7 @@ public class App {
     private static DayOfWeek getDayOfWeekFromArgs(String[] args, DayOfWeek def) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--day".equals(args[i])) {
-                return DayOfWeek.valueOf(args[i+1].toUpperCase());
+                return DayOfWeek.valueOf(args[i + 1].toUpperCase());
             }
         }
         String env = System.getenv("POST_DAY");
@@ -194,7 +200,7 @@ public class App {
     private static LocalTime getTimeFromArgs(String[] args, LocalTime def) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--time".equals(args[i])) {
-                return LocalTime.parse(args[i+1]);
+                return LocalTime.parse(args[i + 1]);
             }
         }
         String env = System.getenv("POST_TIME");
@@ -207,7 +213,7 @@ public class App {
     private static int getIntervalSecondsFromArgs(String[] args, int def) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--interval-seconds".equals(args[i])) {
-                return Integer.parseInt(args[i+1]);
+                return Integer.parseInt(args[i + 1]);
             }
         }
         String env = System.getenv("INTERVAL_SECONDS");
@@ -220,7 +226,7 @@ public class App {
     private static int getStartWeekFromArgs(String[] args, int def) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--start-week".equals(args[i])) {
-                return Integer.parseInt(args[i+1]);
+                return Integer.parseInt(args[i + 1]);
             }
         }
         String env = System.getenv("START_WEEK");
@@ -232,24 +238,45 @@ public class App {
 
     private static int computeCurrentWeekIndex(LocalDate start) {
         LocalDate today = LocalDate.now();
-        return (int) (ChronoUnit.WEEKS.between(start, today.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))) + 1);
+        return (int) (ChronoUnit.WEEKS.between(start,
+                today.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))) + 1);
     }
 
-    private static void runDaemonSim(RotationEngine engine, LocalDate start, int startWeekIndex, int intervalSeconds) throws Exception {
+    private static void runDaemonSim(RotationEngine engine, LocalDate start, int startWeekIndex, int intervalSeconds)
+            throws Exception {
         String webhook = System.getenv("DISCORD_WEBHOOK_URL");
         if (webhook == null || webhook.isBlank()) {
-            System.out.println("[SIM] DISCORD_WEBHOOK_URL not set; will print schedules to stdout only.");
+            System.out.println("[SIM] No webhook — printing to console only");
         }
+
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        System.out.println("Simulation daemon started. Interval: " + intervalSeconds + "s. Starting at week " + startWeekIndex + ".");
         final int[] counter = { startWeekIndex };
+
         ses.scheduleAtFixedRate(() -> {
             try {
-                int weekIndex = counter[0]++;
-                // In sim, we announce the *upcoming* week, consistent with Sunday announcements.
-                LocalDate weekStart = start.plusWeeks(weekIndex);
-                WeekSchedule sc = engine.getWeekSchedule(weekIndex + 1);
-                String content = formatWeeklySchedule(weekIndex + 1, weekStart, sc);
+                int currentIndex = counter[0]++;
+                int weekIndexForRotation = currentIndex; // This makes it rotate every tick!
+
+                WeekSchedule sc = engine.getWeekSchedule(weekIndexForRotation);
+
+                String content = """
+                        @everyone
+
+                        ROOM RUSTER — LIVE TEST MODE
+                        Rotation #%d (changes every 30 seconds)
+
+                        Dish Washing (2): %s
+                        Room Care (1): %s
+                        Shoe Washing (3): %s
+                        Free (%d): %s
+                        """.formatted(
+                        currentIndex,
+                        String.join(", ", sc.dishWashers()),
+                        sc.roomCare(),
+                        String.join(", ", sc.shoeWashers()),
+                        sc.freePeople().size(),
+                        String.join(", ", sc.freePeople()));
+
                 System.out.println(content);
                 if (webhook != null && !webhook.isBlank()) {
                     new DiscordNotifier(webhook).send(content);
@@ -258,5 +285,9 @@ public class App {
                 e.printStackTrace();
             }
         }, 0, intervalSeconds, TimeUnit.SECONDS);
+
+        // Keep the job alive for 10 minutes (GitHub timeout = 6h, but we stop early)
+        Thread.sleep(600_000);
+        ses.shutdown();
     }
 }
