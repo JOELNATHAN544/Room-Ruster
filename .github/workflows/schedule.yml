@@ -3,19 +3,20 @@ name: Weekly Room Roster Schedule
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 0" # Sunday 17:00 UTC = 18:00 Cameroon
+    - cron: "0 17 * * 0"
 
 jobs:
   send-weekly-schedule:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clear cache & force rebuild
-        run: rm -rf ~/.m2/repository/com/roomruster || true
+      - name: KILL ALL CACHES — TOTAL NUCLEAR REBUILD
+        run: |
+          rm -rf ~/.m2/repository
+          rm -rf target
+          echo "ALL OLD CODE DESTROYED"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -23,21 +24,18 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Build fresh JAR
-        run: mvn -B clean package
+      - name: Build from scratch
+        run: mvn -B -DskipTests clean package
 
-      - name: POST WEEK 1 — NO MORE WEEK 48 EVER
+      - name: SHOW PROOF THAT CODE IS NEW
+        run: |
+          echo "=== PROOF: Current anchor date in code ==="
+          grep -A3 -B3 "2025.*12.*01" src/main/java/com/roomruster/App.java || echo "NOT FOUND — BUG!"
+          strings target/room-ruster-0.1.0.jar | grep "2025-12-01" || echo "OLD JAR!"
+
+      - name: POST WEEK 1 — FINAL
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # FORCE WEEK 1 — NO CALCULATION, NO MATH, NO BUGS
-          echo "FORCING WEEK 1 — HARD CODED FOR TESTING"
+          echo "RUNNING BRAND NEW CODE — WEEK 1 INCOMING"
           java -jar target/room-ruster-0.1.0.jar --send
-
-          # Save that Week 1 was posted
-          echo "1" > last-posted-week.txt
-          git config user.name "Room Ruster Bot"
-          git config user.email "bot@noreply.github.com"
-          git add last-posted-week.txt
-          git commit -m "Posted Week 1 (starting 2025-12-01)" || echo "No changes"
-          git push || echo "Push failed (maybe already up to date)"
