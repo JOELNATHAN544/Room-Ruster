@@ -1,10 +1,9 @@
 name: Weekly Room Roster Schedule
 
 on:
-  workflow_dispatch:    # Manual run button
+  workflow_dispatch:
   schedule:
-    # Every Sunday at 17:00 UTC = 18:00 Cameroon time (WAT = UTC+1)
-    - cron: '0 17 * * 0'
+    - cron: '0 17 * * 0'  # Every Sunday 17:00 UTC = 18:00 Cameroon time
 
 jobs:
   send-weekly-schedule:
@@ -22,13 +21,10 @@ jobs:
       - name: Build with Maven
         run: mvn -B clean package --file pom.xml
 
-      - name: Send this week's schedule to Discord
+      - name: Send upcoming week's roster
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          START_DATE: '2025-01-06'   # Your fixed anchor Monday (Week 1)
+          START_DATE: '2025-12-01'   # Week 1 = Monday 1 December 2025
         run: |
-          echo "Generating and sending the upcoming week's roster..."
+          echo "Sending roster for upcoming week..."
           java -jar target/room-ruster-0.1.0.jar --send
-
-          # Extra confirmation in GitHub logs
-          echo "Roster successfully sent to Discord at $(date '+%Y-%m-%d %H:%M:%S') UTC"
