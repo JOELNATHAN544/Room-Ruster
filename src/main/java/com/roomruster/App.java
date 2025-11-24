@@ -242,52 +242,59 @@ public class App {
                 today.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))) + 1);
     }
 
-    private static void runDaemonSim(RotationEngine engine, LocalDate start, int startWeekIndex, int intervalSeconds)
-            throws Exception {
-        String webhook = System.getenv("DISCORD_WEBHOOK_URL");
-        if (webhook == null || webhook.isBlank()) {
-            System.out.println("[SIM] No webhook — printing to console only");
-        }
-
-        ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        final int[] counter = { startWeekIndex };
-
-        ses.scheduleAtFixedRate(() -> {
-            try {
-                int currentIndex = counter[0]++;
-                int weekIndexForRotation = currentIndex; // This makes it rotate every tick!
-
-                WeekSchedule sc = engine.getWeekSchedule(weekIndexForRotation);
-
-                String content = """
-                        @everyone
-
-                        ROOM RUSTER — LIVE TEST MODE
-                        Rotation #%d (changes every 30 seconds)
-
-                        Dish Washing (2): %s
-                        Room Care (1): %s
-                        Shoe Washing (3): %s
-                        Free (%d): %s
-                        """.formatted(
-                        currentIndex,
-                        String.join(", ", sc.dishWashers()),
-                        sc.roomCare(),
-                        String.join(", ", sc.shoeWashers()),
-                        sc.freePeople().size(),
-                        String.join(", ", sc.freePeople()));
-
-                System.out.println(content);
-                if (webhook != null && !webhook.isBlank()) {
-                    new DiscordNotifier(webhook).send(content);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }, 0, intervalSeconds, TimeUnit.SECONDS);
-
-        // Keep the job alive for 10 minutes (GitHub timeout = 6h, but we stop early)
-        Thread.sleep(600_000);
-        ses.shutdown();
+    private static void runDaemonSim(RotationEngine engine, LocalDate start, int startWeekIndex, int intervalSeconds) throws Exception {
+    String webhook = System.getenv("DISCORD_WEBHOOK_URL");
+    if (webhook == null || webhook.isBlank()) {
+        System.out.println("[SIM] No webhook — printing to console only");
     }
+
+    ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+    final int[] counter = { startWeekIndex };
+
+    System.out.println("LIVE 30-SECOND ROTATION TEST STARTED!");
+    System.out.println("Posting a new roster every " + intervalSeconds + " seconds...");
+    System.out.println("This will run forever until you cancel the workflow in GitHub Actions.");
+
+    ses.scheduleAtFixedRate(() -> {
+        try {
+            int currentIndex = counter[0]++;
+            int rotationIndex = currentIndex + 1;  // Start from week 1
+
+            WeekSchedule sc = engine.getWeekSchedule(rotationIndex);
+
+            String content = """
+                @everyone
+
+                ROOM RUSTER — LIVE TEST MODE
+                Rotation #%d (changes every %d seconds)
+
+                Dish Washing (2): %s
+                Room Care (1): %s
+                Shoe Washing (3): %s
+                Free (%d): %s
+                """.formatted(
+                currentIndex,
+                intervalSeconds,
+                String.join(", ", sc.dishWashers()),
+                sc.roomCare(),
+                String.join(", ", sc.shoeWashers()),
+                sc.freePeople().size(),
+                String.join(", ", sc.freePeople())
+            );
+
+            System.out.println("Sending rotation #" + currentIndex + " at " + java.time.LocalDateTime.now());
+            if (webhook != null && !webhook.isBlank()) {
+                new DiscordNotifier(webhook).send(content);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }, 0, intervalSeconds, TimeUnit.SECONDS);
+
+    // THIS IS THE KEY: Never exit! Keep main thread alive forever
+    Object lock = new Object();
+    synchronized (lock) {
+        lock.wait();  // Waits indefinitely — GitHub will kill after 6 hours max
+    }
+}
 }
