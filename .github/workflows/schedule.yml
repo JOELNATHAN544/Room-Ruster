@@ -1,23 +1,28 @@
-name: Weekly Room Roster Schedule
+name: Weekly Room Roster
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 0"
+    - cron: "0 17 * * 0"   # Every Sunday at 17:00 UTC → 18:00 your time (if you're +1)
+  workflow_dispatch:       # So you can run it manually anytime
 
 jobs:
-  send-roster:
+  build-and-send:
     runs-on: ubuntu-latest
     steps:
-      - name: SEND WEEK 1 DIRECTLY — NO JAVA, NO CACHE, NO EXCUSES
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build JAR
+        run: mvn -B clean package
+
+      - name: Send roster via Java app
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          curl -H "Content-Type: application/json" \
-               -d '{
-                 "content": "@everyone\n\n**Room-Ruster — Week 1 (starting 2025-12-01)**\nDish Washing (2): Maxwell, Prosper\nRoom Care (1): Nine\nShoe Washing (3): Nathan, Onel, Derick\nFree (1): Severian"
-               }' \
-               "$DISCORD_WEBHOOK_URL"
-          echo ""
-          echo "WEEK 1 SENT DIRECTLY — NO JAVA INVOLVED"
-          echo "If you see this in Discord → IT WORKED"
+          java -jar target/room-ruster-0.1.0-shaded.jar --send
