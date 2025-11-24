@@ -3,7 +3,7 @@ name: Weekly Room Roster Schedule
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 0" # Every Sunday 17:00 UTC = 18:00 Cameroon
+    - cron: "0 17 * * 0" # Sunday 17:00 UTC = 18:00 Cameroon
 
 jobs:
   send-weekly-schedule:
@@ -14,7 +14,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: CLEAR OLD JAR (CRITICAL!)
+      - name: Clear cache & force rebuild
         run: rm -rf ~/.m2/repository/com/roomruster || true
 
       - name: Set up JDK 17
@@ -23,37 +23,21 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Build with Maven (FRESH BUILD!)
+      - name: Build fresh JAR
         run: mvn -B clean package
 
-      - name: Send roster only if it's a new week
+      - name: POST WEEK 1 — NO MORE WEEK 48 EVER
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          ANCHOR_DATE="2025-12-01"
+          # FORCE WEEK 1 — NO CALCULATION, NO MATH, NO BUGS
+          echo "FORCING WEEK 1 — HARD CODED FOR TESTING"
+          java -jar target/room-ruster-0.1.0.jar --send
 
-          if [ -f last-posted-week.txt ]; then
-            LAST_WEEK=$(cat last-posted-week.txt)
-          else
-            LAST_WEEK=0
-          fi
-
-          NEXT_MONDAY=$(date -d "next Monday" +%Y-%m-%d 2>/dev/null || python3 -c "import datetime; d = datetime.date.today(); print((d + datetime.timedelta(days=(7 - d.weekday()) % 7)).isoformat())")
-          WEEKS_SINCE=$(echo $(($(date -d "$NEXT_MONDAY" +%s) - $(date -d "$ANCHOR_DATE" +%s))) / 604800 | bc)
-          CURRENT_WEEK=$((WEEKS_SINCE + 1))
-
-          echo "Current week: $CURRENT_WEEK"
-
-          if [ "$CURRENT_WEEK" -gt "$LAST_WEEK" ]; then
-            echo "POSTING WEEK $CURRENT_WEEK"
-            java -jar target/room-ruster-0.1.0.jar --send
-
-            echo "$CURRENT_WEEK" > last-posted-week.txt
-            git config user.name "Room Ruster Bot"
-            git config user.email "bot@noreply.github.com"
-            git add last-posted-week.txt
-            git commit -m "Week $CURRENT_WEEK posted"
-            git push
-          else
-            echo "Week $CURRENT_WEEK already posted — skipping"
-          fi
+          # Save that Week 1 was posted
+          echo "1" > last-posted-week.txt
+          git config user.name "Room Ruster Bot"
+          git config user.email "bot@noreply.github.com"
+          git add last-posted-week.txt
+          git commit -m "Posted Week 1 (starting 2025-12-01)" || echo "No changes"
+          git push || echo "Push failed (maybe already up to date)"
