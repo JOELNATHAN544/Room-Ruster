@@ -3,7 +3,7 @@ name: Weekly Room Roster Schedule
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 17 * * 0'   # Sunday 17:00 UTC = 18:00 Cameroon time
+    - cron: "0 17 * * 0" # Every Sunday 17:00 UTC = 18:00 Cameroon time
 
 jobs:
   send-weekly-schedule:
@@ -12,49 +12,55 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }} # Needed to push the file
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Build with Maven
         run: mvn -B clean package
 
-      - name: Calculate and send correct week (STATEFUL!)
+      - name: Send roster only if it's a new week (STATEFUL + NO WEEK 48)
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          START_DATE: '2025-12-01'
         run: |
-          # Read last posted week (or 0 if file doesn't exist)
+          # === HARDCODED ANCHOR DATE: Week 1 = Monday 1 December 2025 ===
+          ANCHOR_DATE="2025-12-01"
+
+          # Read last posted week (or 0 if no file)
           if [ -f last-posted-week.txt ]; then
             LAST_WEEK=$(cat last-posted-week.txt)
-            echo "Last posted week was: $LAST_WEEK"
+            echo "Last posted week: $LAST_WEEK"
           else
             LAST_WEEK=0
-            echo "No previous record — starting fresh"
+            echo "First time running — starting from Week 1"
           fi
 
-          # Calculate what week it SHOULD be
-          NEXT_MONDAY=$(date -d "next Monday" +%Y-%m-%d 2>/dev/null || python -c 'import datetime; print((datetime.date.today() + datetime.timedelta(days=(7-datetime.date.today().weekday())%7)).isoformat())')
-          WEEKS_SINCE_START=$(echo $(($(date -d "$NEXT_MONDAY" +%s) - $(date -d "2025-12-01" +%s))) / 604800 | bc)
-          CURRENT_WEEK=$((WEEKS_SINCE_START + 1))
+          # Calculate next Monday
+          NEXT_MONDAY=$(date -d "next Monday" +%Y-%m-%d 2>/dev/null || python3 -c "import datetime; d = datetime.date.today(); print((d + datetime.timedelta(days=(7 - d.weekday()) % 7)).isoformat())")
 
-          echo "Today next Monday is: $NEXT_MONDAY"
-          echo "We are in Week: $CURRENT_WEEK"
+          # Calculate current week number
+          WEEKS_SINCE=$(echo $(($(date -d "$NEXT_MONDAY" +%s) - $(date -d "$ANCHOR_DATE" +%s))) / 604800 | bc)
+          CURRENT_WEEK=$((WEEKS_SINCE + 1))
+
+          echo "Next Monday: $NEXT_MONDAY"
+          echo "Current week should be: $CURRENT_WEEK"
 
           # Only post if it's a NEW week
           if [ "$CURRENT_WEEK" -gt "$LAST_WEEK" ]; then
-            echo "New week detected! Posting Week $CURRENT_WEEK"
+            echo "NEW WEEK! Posting Week $CURRENT_WEEK"
             java -jar target/room-ruster-0.1.0.jar --send
+
+            # Save the new week number
             echo "$CURRENT_WEEK" > last-posted-week.txt
             git config user.name "Room Ruster Bot"
-            git config user.email "bot@roomruster"
+            git config user.email "bot@noreply.github.com"
             git add last-posted-week.txt
-            git commit -m "Update last posted week to $CURRENT_WEEK"
+            git commit -m "Advance to Week $CURRENT_WEEK"
             git push
           else
-            echo "Still Week $CURRENT_WEEK — already posted before. Skipping."
+            echo "Still Week $CURRENT_WEEK — already posted. Nothing to do."
           fi

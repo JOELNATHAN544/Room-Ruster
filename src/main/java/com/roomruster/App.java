@@ -74,31 +74,9 @@ public class App {
     }
 
     private static LocalDate getStartDateFromArgsOrEnv(String[] args) {
-        LocalDate start = null;
-        for (int i = 0; i < args.length - 1; i++) {
-            if ("--start".equals(args[i])) {
-                start = LocalDate.parse(args[i + 1], DATE_FMT);
-                break;
-            }
-        }
-        if (start == null) {
-            String env = System.getenv("START_DATE");
-            if (env != null && !env.isBlank()) {
-                start = LocalDate.parse(env.trim(), DATE_FMT);
-            }
-        }
-        if (start == null) {
-            // Default: next Monday from today (or today if Monday)
-            LocalDate today = LocalDate.now();
-            DayOfWeek dow = today.getDayOfWeek();
-            int daysUntilMonday = (DayOfWeek.MONDAY.getValue() - dow.getValue() + 7) % 7;
-            start = today.plusDays(daysUntilMonday);
-        }
-        // Ensure start is a Monday for clarity
-        if (start.getDayOfWeek() != DayOfWeek.MONDAY) {
-            start = start.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        }
-        return start;
+        // HARDCORE FIX: Week 1 ALWAYS starts on Monday 1 December 2025
+        // No env vars, no fallbacks, no bugs, no Week 48 EVER AGAIN
+        return LocalDate.of(2025, 12, 1);
     }
 
     private static void printWeeks(RotationEngine engine, LocalDate start, int n) {
@@ -119,9 +97,9 @@ public class App {
         }
 
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-        long weeks = ChronoUnit.WEEKS.between(start, nextMonday);
-        int weekIndex = (int) weeks + 1;
-        LocalDate weekStart = start.plusWeeks(weeks);
+        long weeksSinceStart = ChronoUnit.WEEKS.between(start, nextMonday);
+        int weekIndex = (int) weeksSinceStart + 1;
+        LocalDate weekStart = start.plusWeeks(weeksSinceStart);
 
         sendFor(engine, webhook, weekIndex, weekStart);
     }
