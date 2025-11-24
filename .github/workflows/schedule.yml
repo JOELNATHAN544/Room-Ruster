@@ -1,15 +1,15 @@
-name: Weekly Room Roster Schedule
+name: TEST - 30sec Rotation (Real Rotation!)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # Manual start
   schedule:
-    - cron: '0 17 * * 0'  # Every Sunday 17:00 UTC = 18:00 Cameroon time
+    - cron: '*/30 * * * *'   # Every 30 seconds
 
 jobs:
-  send-weekly-schedule:
+  test-rotation:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -18,13 +18,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Maven
-        run: mvn -B clean package --file pom.xml
+      - name: Build
+        run: mvn -B clean package
 
-      - name: Send upcoming week's roster
+      - name: Run 30-second rotation test
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          START_DATE: '2025-12-01'   # Week 1 = Monday 1 December 2025
         run: |
-          echo "Sending roster for upcoming week..."
-          java -jar target/room-ruster-0.1.0.jar --send
+          echo "TEST MODE: New roster every 30 seconds with real rotation!"
+          java -jar target/room-ruster-0.1.0.jar --daemon-sim --interval-seconds 30 --start-week 1
