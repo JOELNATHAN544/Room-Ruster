@@ -25,4 +25,5 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          java -jar target/room-ruster-0.1.0-shaded.jar --send
+          java -jar target/room-ruster-0.1.0.jar --send
+          
