@@ -1,0 +1,10 @@
+.git
+.gitignore
+.github
+target
+*.class
+*.jar
+*.log
+.DS_Store
+node_modules
+README.md
