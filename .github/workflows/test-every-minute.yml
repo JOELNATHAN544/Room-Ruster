@@ -1,8 +1,8 @@
-name: TEST – Every 1 Minute (delete when done)
+name: TEST – Every 5 Minute (delete when done)
 
 on:
   schedule:
-    - cron: "*/1 * * * *"   # Every single minute – works forever with this name
+    - cron: "*/5 * * * *"   
   workflow_dispatch:
 
 jobs:
