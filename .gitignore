@@ -1,6 +1,6 @@
 # Environment variables
 .env
-
+last-posted-week.txt
 # Maven
 /target/
 **/target/
