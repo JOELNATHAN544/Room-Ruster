@@ -1,51 +1,30 @@
 name: Weekly Room Roster
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 0"   # Every Sunday at 17:00 UTC (18:00 your time if +1)
-  workflow_dispatch:      # Allows manual run
+    - cron: "0 17 * * 0"
 
 jobs:
-  build-and-send:
+  send:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: maven
 
-      - name: Clean & Build Fresh JAR (no cache tricks)
+      - name: FULL CLEAN BUILD
         run: |
-          echo "Deleting old target/ folder..."
+          rm -rf ~/.m2/repository/com/roomruster || true
           rm -rf target/
-          echo "Building brand new JAR..."
           mvn -B -DskipTests clean package
 
-      - name: Verify it's REALLY the new code (debug output)
-        run: |
-          echo "=== THIS MUST SHOW WEEK 1 AND 2025-12-01 ==="
-          java -jar target/room-ruster-0.1.0.jar --print 1
-          echo "=== DONE ==="
-
-      - name: Send roster to Discord
+      - name: RUN AND SEE THE TRUTH
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-            echo "ERROR: DISCORD_WEBHOOK_URL secret is missing!"
-            exit 1
-          fi
-          echo "Sending Week 1 to Discord..."
           java -jar target/room-ruster-0.1.0.jar --send
-          echo "Successfully sent!"
-
-      - name: Final success message
-        run: echo "Room-Ruster is now 100% fixed. Week 1 forever."
