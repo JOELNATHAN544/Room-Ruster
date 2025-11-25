@@ -3,7 +3,7 @@ name: Weekly Room Roster
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 17 * * 0"
+    - cron: "*/5 * * * *"
 
 jobs:
   send:

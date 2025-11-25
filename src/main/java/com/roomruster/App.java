@@ -2,7 +2,6 @@ package com.roomruster;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 
 import com.roomruster.core.RotationEngine;
 import com.roomruster.core.WeekSchedule;
@@ -34,15 +33,21 @@ public class App {
         }
     }
 
-    private static int calculateCurrentWeekIndex() {
-        LocalDate today = LocalDate.now();
-        LocalDate upcomingMonday = today.plusDays((8 - today.getDayOfWeek().getValue()) % 7 == 0 ? 7 : (8 - today.getDayOfWeek().getValue()) % 7);
+    private static int getNextWeekIndex() throws java.io.IOException {
+        java.nio.file.Path stateFile = java.nio.file.Paths.get("last-posted-week.txt");
+        int lastPostedWeek = 0;
+        if (java.nio.file.Files.exists(stateFile)) {
+            String content = java.nio.file.Files.readString(stateFile).trim();
+            if (!content.isEmpty()) {
+                lastPostedWeek = Integer.parseInt(content);
+            }
+        }
+        return lastPostedWeek + 1;
+    }
 
-        long weeks = ChronoUnit.WEEKS.between(WEEK_1_START, upcomingMonday);
-        int weekIndex = (int) weeks + 1;
-
-        System.out.printf("[FINAL DEBUG] Today: %s | Next Monday: %s | Week: %d%n", today, upcomingMonday, weekIndex);
-        return weekIndex;
+    private static void saveLastPostedWeek(int weekIndex) throws java.io.IOException {
+        java.nio.file.Path stateFile = java.nio.file.Paths.get("last-posted-week.txt");
+        java.nio.file.Files.writeString(stateFile, String.valueOf(weekIndex));
     }
 
     private static void sendThisWeek(RotationEngine engine) throws Exception {
@@ -52,7 +57,7 @@ public class App {
             System.exit(1);
         }
 
-        int weekIndex = calculateCurrentWeekIndex();
+        int weekIndex = getNextWeekIndex();
         LocalDate weekStart = WEEK_1_START.plusWeeks(weekIndex - 1);
         WeekSchedule sc = engine.getWeekSchedule(weekIndex);
 
@@ -77,12 +82,14 @@ public class App {
         );
 
         new DiscordNotifier(webhook).send(message);
-        System.out.println("SENT WEEK " + weekIndex);
+        saveLastPostedWeek(weekIndex);
+        System.out.println("SENT AND SAVED WEEK " + weekIndex);
     }
 
-    private static void printWeeks(RotationEngine engine, int count) {
+    private static void printWeeks(RotationEngine engine, int count) throws java.io.IOException {
+        int nextWeek = getNextWeekIndex();
         for (int i = 0; i < count; i++) {
-            int wi = calculateCurrentWeekIndex() + i;
+            int wi = nextWeek + i;
             LocalDate ws = WEEK_1_START.plusWeeks(wi - 1);
             WeekSchedule sc = engine.getWeekSchedule(wi);
             System.out.println(formatMessage(wi, ws, sc));
