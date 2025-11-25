@@ -16,11 +16,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Pull and Run Docker Image
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           docker run --rm \
             -e DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL}" \
-            -v room-ruster-state:/app/state \
-            ghcr.io/${{ github.repository_owner }}/room-ruster:latest
+            -v $(pwd):/app/state \
+            ghcr.io/JOELNATHAN544/Room-Ruster:latest
+
+      - name: Commit and push updated state
+        run: |
+          git config user.name "Room-Ruster Bot"
+          git config user.email "bot@room-ruster.local"
+          git add last-posted-week.txt
+          git commit -m "Update week state: $(cat last-posted-week.txt)" || true
+          git push
