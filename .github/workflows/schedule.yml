@@ -17,25 +17,32 @@ on:
 jobs:
   send:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+      
     steps:
-      - name: Login to Container Registry
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Create state directory
+        run: mkdir -p state
+        
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Pull and Run Docker Image
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Create state directory if it doesn't exist
-          mkdir -p state
+          # Pull the latest image
+          docker pull ghcr.io/joelnathan544/room-ruster:latest
           
-          # Run the container with the correct image name and volume mount
+          # Run the container
           docker run --rm \
             -e DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL}" \
             -v $(pwd)/state:/app/state \

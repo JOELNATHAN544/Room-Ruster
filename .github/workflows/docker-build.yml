@@ -1,27 +1,29 @@
-name: push-room-ruster
+name: Build and Push Docker Image
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: login to container registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+          
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -31,3 +33,5 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/joelnathan544/room-ruster:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
