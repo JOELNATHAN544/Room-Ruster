@@ -1,12 +1,16 @@
 name: Weekly Room Roster
 
 on:
-  # Test schedule - runs every minute starting at 09:10 UTC (10:10 AM CET)
+  # Test schedule - runs every minute
   schedule:
-    - cron: "*/1 9-23 * * *"
+    - cron: "* * * * *"  # Every minute
 
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
+
+  # Run on push to main for testing
+  push:
+    branches: [ main ]
 
 jobs:
   send:
@@ -33,44 +37,112 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.CR_PAT }} # Using the same PAT as in docker-build.yml
 
+      - name: Debug Info
+        run: |
+          echo "Current time: $(date)"
+          echo "GitHub Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Run ID: ${{ github.run_id }}"
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.CR_PAT }}
+
       - name: Pull and Run Docker Image
         run: |
+          set -x  # Enable debug output
+          
           # Debug info
+          echo "=== Debug Information ==="
           echo "Current directory: $(pwd)"
           echo "Docker version: $(docker --version)"
-
-          # Log in with the PAT
-          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "Current time: $(date)"
+          
+          # Verify GitHub token is set
+          if [ -z "${{ secrets.CR_PAT }}" ]; then
+            echo "ERROR: GitHub token (CR_PAT) is not set!"
+            exit 1
+          fi
+          
+          # Verify webhook URL is set
+          if [ -z "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            echo "ERROR: DISCORD_WEBHOOK_URL secret is not set!"
+            exit 1
+          fi
+          
+          # Debug: Print first few characters of webhook URL (without exposing the full URL)
+          echo "Webhook URL starts with: ${DISCORD_WEBHOOK_URL:0:10}..."
+          
+          # Log in to GitHub Container Registry
+          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin || {
+            echo "ERROR: Failed to log in to GitHub Container Registry"
+            exit 1
+          }
 
           # Pull the image with authentication
           echo "Pulling image..."
-          docker pull ghcr.io/joelnathan544/room-ruster:latest
+          docker pull ghcr.io/joelnathan544/room-ruster:latest || {
+            echo "ERROR: Failed to pull Docker image"
+            exit 1
+          }
 
           # Create state directory if it doesn't exist
           mkdir -p state
-
-          # Debug: Check if webhook URL is set
-          echo "Webhook URL length: ${#DISCORD_WEBHOOK_URL}"
+          echo "State directory created/verified"
+          
+          # Debug: Show environment variables (without revealing secrets)
+          echo "Environment variables:"
+          echo "DISCORD_WEBHOOK_URL length: ${#DISCORD_WEBHOOK_URL}"
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
           
           # Run the container with the secret passed directly
-          echo "Running container with webhook..."
+          echo "=== Starting Docker container ==="
           docker run --rm \
             -e "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -e "GITHUB_ACTOR=${{ github.actor }}" \
             -v $(pwd)/state:/app/state \
             --entrypoint /bin/sh \
             ghcr.io/joelnathan544/room-ruster:latest -c "
-              echo 'Environment variables in container:'
+              echo '=== Inside container ==='
+              echo 'Current directory: $(pwd)'
+              echo 'Files in container:'
+              ls -la
+              echo 'Environment variables:'
               env | grep -i discord
-              java -jar room-ruster-0.1.0.jar --send
-            "
+              echo 'Running Java application...'
+              # Run with error handling
+              if ! java -jar room-ruster-0.1.0.jar --send; then
+                echo "ERROR: Java application failed with exit code $?"
+                # Write error to file for debugging
+                echo "Java application failed" > /app/state/error.log
+                exit 1
+              fi
+            " || {
+              echo "ERROR: Docker container failed with exit code $?"
+              # Check if error log exists
+              if [ -f "state/error.log" ]; then
+                echo "=== Java Application Error Log ==="
+                cat state/error.log
+              fi
+              exit 1
+            }
 
           # Show state directory contents
-          echo "State directory contents:"
+          echo "=== State directory contents ==="
           ls -la state/
-
-          # Clean up
-          rm -f .env
+          
+          # Show any error logs
+          if [ -f "state/error.log" ]; then
+            echo "=== Error Log ==="
+            cat state/error.log
+          fi
 
       - name: Commit and push updated state
         run: |
