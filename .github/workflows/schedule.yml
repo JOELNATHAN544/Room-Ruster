@@ -49,12 +49,16 @@ jobs:
           # Create state directory if it doesn't exist
           mkdir -p state
           
+          # Debug: Verify the secret is accessible
+          echo "Checking webhook secret (first 5 chars): ${#SECRET_DISCORD_WEBHOOK:0:5}..."
+          
           # Run the container with the secret passed directly
           echo "Running container with webhook..."
           docker run --rm \
             -e "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK }}" \
             -e "GITHUB_ACTOR=${{ github.actor }}" \
             -v $(pwd)/state:/app/state \
+            --env-file <(echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK }}") \
             ghcr.io/joelnathan544/room-ruster:latest --send
           
           # Show state directory contents
