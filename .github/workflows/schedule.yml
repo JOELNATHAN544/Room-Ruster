@@ -1,9 +1,20 @@
 name: Weekly Room Roster
 
 on:
-  workflow_dispatch:
+  # Weekly schedule (Sundays at 5 PM UTC / 6 PM Cameroon Time)
   schedule:
     - cron: "0 17 * * 0"
+  
+  # Run on every push to main branch
+  push:
+    branches: [ "main" ]
+    
+  # Run on pull requests targeting main
+  pull_request:
+    branches: [ "main" ]
+    
+  # Manual trigger option (from GitHub UI)
+  workflow_dispatch:
 
 jobs:
   send:
