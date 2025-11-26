@@ -3,7 +3,7 @@ name: Weekly Room Roster
 on:
   # Test schedule - runs at 09:41 UTC (10:41 AM CET)
   schedule:
-    - cron: "44 9 * * *"
+    - cron: "50 9 * * *"
   
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
@@ -14,6 +14,7 @@ jobs:
     permissions:
       contents: write  # For committing the state file
       packages: read   # For pulling the Docker image
+      id-token: write  # For GitHub OIDC token
       
     steps:
       - name: Checkout code
@@ -30,7 +31,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.CR_PAT }}  # Using the same PAT as in docker-build.yml
 
       - name: Pull and Run Docker Image
         env:
@@ -40,7 +41,10 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "Docker version: $(docker --version)"
           
-          # Pull the image using GITHUB_TOKEN
+          # Log in with the PAT
+          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Pull the image with authentication
           echo "Pulling image..."
           docker pull ghcr.io/joelnathan544/room-ruster:latest
           
