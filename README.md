@@ -29,7 +29,7 @@ If you only have Docker installed (no Java or Maven needed):
 ```bash
 docker run --rm \
   -e DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_WEBHOOK_URL" \
-  ghcr.io/JOELNATHAN544/Room-Ruster:latest
+  ghcr.io/JOELNATHAN544/room-ruster:latest
 ```
 
 That's it! The container will automatically send the current week's schedule to Discord.
