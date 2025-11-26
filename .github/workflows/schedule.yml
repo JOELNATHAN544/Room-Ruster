@@ -4,7 +4,7 @@ on:
   # Test schedule - runs at 09:41 UTC (10:41 AM CET)
   schedule:
     - cron: "50 9 * * *"
-  
+
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
 
@@ -12,17 +12,17 @@ jobs:
   send:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # For committing the state file
-      packages: read   # For pulling the Docker image
-      id-token: write  # For GitHub OIDC token
-      
+      contents: write # For committing the state file
+      packages: read # For pulling the Docker image
+      id-token: write # For GitHub OIDC token
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Create state directory
         run: mkdir -p state
-        
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -31,40 +31,36 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.CR_PAT }}  # Using the same PAT as in docker-build.yml
+          password: ${{ secrets.CR_PAT }} # Using the same PAT as in docker-build.yml
 
       - name: Pull and Run Docker Image
         run: |
           # Debug info
           echo "Current directory: $(pwd)"
           echo "Docker version: $(docker --version)"
-          
+
           # Log in with the PAT
           echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          
+
           # Pull the image with authentication
           echo "Pulling image..."
           docker pull ghcr.io/joelnathan544/room-ruster:latest
-          
+
           # Create state directory if it doesn't exist
           mkdir -p state
-          
-          # Debug: Verify the secret is accessible
-          echo "Checking webhook secret (first 5 chars): ${#SECRET_DISCORD_WEBHOOK:0:5}..."
-          
+
           # Run the container with the secret passed directly
           echo "Running container with webhook..."
           docker run --rm \
-            -e "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK }}" \
+            -e "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -e "GITHUB_ACTOR=${{ github.actor }}" \
             -v $(pwd)/state:/app/state \
-            --env-file <(echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK }}") \
             ghcr.io/joelnathan544/room-ruster:latest --send
-          
+
           # Show state directory contents
           echo "State directory contents:"
           ls -la state/
-          
+
           # Clean up
           rm -f .env
 
