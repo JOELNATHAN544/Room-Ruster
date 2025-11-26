@@ -51,16 +51,15 @@ jobs:
           # Create state directory if it doesn't exist
           mkdir -p state
           
-          # Create a clean environment file
-          echo "DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL" > .env
-          echo "GITHUB_ACTOR=${{ github.actor }}" >> .env
+          # Debug: Verify the webhook URL is set
+          echo "DISCORD_WEBHOOK_URL length: ${#DISCORD_WEBHOOK_URL}"
           
-          # Run the container with proper environment and volume
-          echo "Running container..."
+          # Run the container with environment variables directly
+          echo "Running container with environment variables..."
           docker run --rm \
-            --env-file .env \
+            -e "DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL" \
+            -e "GITHUB_ACTOR=${{ github.actor }}" \
             -v $(pwd)/state:/app/state \
-            --pull always \
             ghcr.io/joelnathan544/room-ruster:latest --send
           
           # Show state directory contents
