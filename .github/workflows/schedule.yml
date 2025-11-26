@@ -18,8 +18,8 @@ jobs:
   send:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: read
+      contents: write  # For committing the state file
+      packages: read   # For pulling the Docker image
       
     steps:
       - name: Checkout code
@@ -33,7 +33,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}  # GITHUB_TOKEN has read access to packages
 
       - name: Pull and Run Docker Image
         env:
