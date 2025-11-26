@@ -1,9 +1,9 @@
 name: Weekly Room Roster
 
 on:
-  # Test schedule - runs every minute
+  # Weekly schedule - runs every Sunday at 4:30 PM UTC (5:30 PM UTC+1)
   schedule:
-    - cron: "* * * * *"  # Every minute
+    - cron: '30 15 * * 0'  # At 15:30 UTC (16:30 UTC+1) every Sunday
 
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
@@ -24,8 +24,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create state directory
-        run: mkdir -p state
+      - name: Create state directory and initialize week counter
+        run: |
+          mkdir -p state
+          # Set the start date to November 30, 2025
+          START_DATE="2025-11-30"
+          CURRENT_DATE=$(date +%Y-%m-%d)
+          
+          # If the state file doesn't exist or the current date is before the start date
+          if [ ! -f "state/last-posted-week.txt" ] || [ "$CURRENT_DATE" \< "$START_DATE" ]; then
+            echo "0" > state/last-posted-week.txt
+            echo "Initialized week counter. First run will be on $START_DATE."
+          else
+            echo "Using existing week counter."
+          fi
+          
+          echo "Current date: $CURRENT_DATE"
+          echo "Start date: $START_DATE"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
