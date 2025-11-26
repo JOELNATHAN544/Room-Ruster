@@ -3,7 +3,7 @@ name: Weekly Room Roster
 on:
   # Test schedule - runs at 09:41 UTC (10:41 AM CET)
   schedule:
-    - cron: "41 9 * * *"
+    - cron: "43 9 * * *"
   
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
@@ -37,8 +37,8 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "Docker version: $(docker --version)"
           
-          # Pull the latest image with authentication
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          # Pull the latest image with authentication using the PAT
+          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
           # Pull the image
           docker pull ghcr.io/joelnathan544/room-ruster:latest
