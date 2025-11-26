@@ -9,22 +9,29 @@ jobs:
   send:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: FULL CLEAN BUILD
-        run: |
-          rm -rf ~/.m2/repository/com/roomruster || true
-          rm -rf target/
-          mvn -B -DskipTests clean package
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: RUN AND SEE THE TRUTH
+      - name: Pull and Run Docker Image
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          java -jar target/room-ruster-0.1.0.jar --send
+          docker run --rm \
+            -e DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL}" \
+            -v $(pwd):/app/state \
+            ghcr.io/JOELNATHAN544/Room-Ruster:latest
+
+      - name: Commit and push updated state
+        run: |
+          git config user.name "Room-Ruster Bot"
+          git config user.email "bot@room-ruster.local"
+          git add last-posted-week.txt
+          git commit -m "Update week state: $(cat last-posted-week.txt)" || true
+          git push

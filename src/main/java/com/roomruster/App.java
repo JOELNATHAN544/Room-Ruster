@@ -34,7 +34,7 @@ public class App {
     }
 
     private static int getNextWeekIndex() throws java.io.IOException {
-        java.nio.file.Path stateFile = java.nio.file.Paths.get("last-posted-week.txt");
+        java.nio.file.Path stateFile = java.nio.file.Paths.get("/app/state/last-posted-week.txt");
         int lastPostedWeek = 0;
         if (java.nio.file.Files.exists(stateFile)) {
             String content = java.nio.file.Files.readString(stateFile).trim();
@@ -46,7 +46,9 @@ public class App {
     }
 
     private static void saveLastPostedWeek(int weekIndex) throws java.io.IOException {
-        java.nio.file.Path stateFile = java.nio.file.Paths.get("last-posted-week.txt");
+        java.nio.file.Path stateDir = java.nio.file.Paths.get("/app/state");
+        java.nio.file.Files.createDirectories(stateDir);
+        java.nio.file.Path stateFile = stateDir.resolve("last-posted-week.txt");
         java.nio.file.Files.writeString(stateFile, String.valueOf(weekIndex));
     }
 
