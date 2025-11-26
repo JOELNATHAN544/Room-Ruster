@@ -3,7 +3,7 @@ name: Weekly Room Roster
 on:
   # Test schedule - runs at 09:41 UTC (10:41 AM CET)
   schedule:
-    - cron: "43 9 * * *"
+    - cron: "44 9 * * *"
   
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
@@ -22,6 +22,9 @@ jobs:
       - name: Create state directory
         run: mkdir -p state
         
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -37,21 +40,23 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "Docker version: $(docker --version)"
           
-          # Pull the latest image with authentication using the PAT
-          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          
-          # Pull the image
+          # Pull the image using GITHUB_TOKEN
+          echo "Pulling image..."
           docker pull ghcr.io/joelnathan544/room-ruster:latest
+          
+          # Create state directory if it doesn't exist
+          mkdir -p state
           
           # Create a clean environment file
           echo "DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL" > .env
           echo "GITHUB_ACTOR=${{ github.actor }}" >> .env
           
           # Run the container with proper environment and volume
-          echo "Running container with DISCORD_WEBHOOK_URL"
+          echo "Running container..."
           docker run --rm \
             --env-file .env \
             -v $(pwd)/state:/app/state \
+            --pull always \
             ghcr.io/joelnathan544/room-ruster:latest --send
           
           # Show state directory contents
