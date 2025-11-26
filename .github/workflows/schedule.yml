@@ -34,8 +34,6 @@ jobs:
           password: ${{ secrets.CR_PAT }}  # Using the same PAT as in docker-build.yml
 
       - name: Pull and Run Docker Image
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           # Debug info
           echo "Current directory: $(pwd)"
@@ -51,13 +49,10 @@ jobs:
           # Create state directory if it doesn't exist
           mkdir -p state
           
-          # Debug: Verify the webhook URL is set
-          echo "DISCORD_WEBHOOK_URL length: ${#DISCORD_WEBHOOK_URL}"
-          
-          # Run the container with environment variables directly
-          echo "Running container with environment variables..."
+          # Run the container with the secret passed directly
+          echo "Running container with webhook..."
           docker run --rm \
-            -e "DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL" \
+            -e "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK }}" \
             -e "GITHUB_ACTOR=${{ github.actor }}" \
             -v $(pwd)/state:/app/state \
             ghcr.io/joelnathan544/room-ruster:latest --send
