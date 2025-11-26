@@ -104,27 +104,37 @@ jobs:
           
           # Run the container with the secret passed directly
           echo "=== Starting Docker container ==="
+          # Create a temporary script file to avoid shell escaping issues
+          cat > run_app.sh << 'EOF'
+          #!/bin/sh
+          echo '=== Inside container ==='
+          echo 'Current directory: $(pwd)'
+          echo 'Files in container:'
+          ls -la
+          echo 'Environment variables:'
+          env | grep -i discord
+          echo 'Running Java application...'
+          # Run the Java application
+          if ! java -jar room-ruster-0.1.0.jar --send; then
+              echo "ERROR: Java application failed with exit code $?"
+              # Write error to file for debugging
+              mkdir -p /app/state
+              echo "Java application failed" > /app/state/error.log
+              exit 1
+          fi
+          EOF
+          
+          # Make the script executable
+          chmod +x run_app.sh
+          
+          # Run the container with the script
           docker run --rm \
             -e "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -e "GITHUB_ACTOR=${{ github.actor }}" \
             -v $(pwd)/state:/app/state \
+            -v $(pwd)/run_app.sh:/run_app.sh \
             --entrypoint /bin/sh \
-            ghcr.io/joelnathan544/room-ruster:latest -c "
-              echo '=== Inside container ==='
-              echo 'Current directory: $(pwd)'
-              echo 'Files in container:'
-              ls -la
-              echo 'Environment variables:'
-              env | grep -i discord
-              echo 'Running Java application...'
-              # Run with error handling
-              if ! java -jar room-ruster-0.1.0.jar --send; then
-                echo "ERROR: Java application failed with exit code $?"
-                # Write error to file for debugging
-                echo "Java application failed" > /app/state/error.log
-                exit 1
-              fi
-            " || {
+            ghcr.io/joelnathan544/room-ruster:latest /run_app.sh || {
               echo "ERROR: Docker container failed with exit code $?"
               # Check if error log exists
               if [ -f "state/error.log" ]; then
