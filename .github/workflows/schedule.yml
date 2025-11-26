@@ -37,12 +37,15 @@ jobs:
 
       - name: Pull and Run Docker Image
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          # Pull the latest image
+          # Pull the latest image with authentication
+          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Pull the image
           docker pull ghcr.io/joelnathan544/room-ruster:latest
           
-          # Run the container
+          # Run the container with proper environment and volume
           docker run --rm \
             -e DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL}" \
             -v $(pwd)/state:/app/state \
