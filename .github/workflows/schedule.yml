@@ -1,9 +1,9 @@
 name: Weekly Room Roster
 
 on:
-  # Test schedule - runs at 09:41 UTC (10:41 AM CET)
+  # Test schedule - runs every minute starting at 09:10 UTC (10:10 AM CET)
   schedule:
-    - cron: "50 9 * * *"
+    - cron: "*/1 9-23 * * *"
 
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
