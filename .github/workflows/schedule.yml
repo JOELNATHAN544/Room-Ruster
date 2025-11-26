@@ -1,20 +1,18 @@
 name: Weekly Room Roster
 
 on:
-  # Weekly schedule (Sundays at 5 PM UTC / 6 PM Cameroon Time)
+  # Test schedule - runs every minute
   schedule:
-    - cron: "0 17 * * 0"
+    - cron: "* * * * *"
   
-  # Run on every push to main branch
-  push:
-    branches: [ "main" ]
-    
-  # Run on pull requests targeting main
-  pull_request:
-    branches: [ "main" ]
-    
   # Manual trigger option (from GitHub UI)
   workflow_dispatch:
+  
+  # Disable these for testing
+  # push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
 
 jobs:
   send:
@@ -34,10 +32,14 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # Create state directory if it doesn't exist
+          mkdir -p state
+          
+          # Run the container with the correct image name and volume mount
           docker run --rm \
             -e DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL}" \
-            -v $(pwd):/app/state \
-            ghcr.io/JOELNATHAN544/Room-Ruster:latest
+            -v $(pwd)/state:/app/state \
+            ghcr.io/joelnathan544/room-ruster:latest
 
       - name: Commit and push updated state
         run: |
