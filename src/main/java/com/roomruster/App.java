@@ -17,6 +17,22 @@ public class App {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Room-Ruster FINAL VERSION — NOV 25 2025 — RUNNING");
+        
+        // Debug: Print environment variables
+        System.out.println("Environment variables:");
+        System.getenv().forEach((key, value) -> {
+            if (key.contains("DISCORD")) {
+                System.out.println(key + " = " + value);
+            }
+        });
+        
+        // Debug: Print system properties
+        System.out.println("System properties:");
+        System.getProperties().forEach((key, value) -> {
+            if (key.toString().contains("discord")) {
+                System.out.println(key + " = " + value);
+            }
+        });
 
         if (args.length == 0) {
             System.out.println("Use --send or --print");

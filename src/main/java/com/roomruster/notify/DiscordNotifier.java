@@ -19,21 +19,40 @@ public class DiscordNotifier {
     }
 
     public void send(String message) throws Exception {
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            throw new IllegalArgumentException("Discord webhook URL is not set");
+        }
+        
         // Discord webhook expects JSON: {"content":"..."}
-        String payload = "{\"content\":" + jsonString(message) + "}"; // no space after colon
+        String payload = String.format("{\"content\":\"%s\"}", 
+            message.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t")
+        );
         
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(webhookUrl))
-                .timeout(Duration.ofSeconds(20))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
-                .build();
-                
-        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        int code = resp.statusCode();
+        System.out.println("Sending to Discord: " + payload);
         
-        if (code < 200 || code >= 300) {
-            throw new RuntimeException("Discord webhook failed: HTTP " + code + " - " + resp.body());
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(webhookUrl))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
+                    .build();
+                    
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            int code = resp.statusCode();
+            
+            System.out.println("Discord webhook response: " + code + " - " + resp.body());
+            
+            if (code < 200 || code >= 300) {
+                throw new RuntimeException("Discord webhook failed: HTTP " + code + " - " + resp.body());
+            }
+        } catch (Exception e) {
+            System.err.println("Error sending to Discord: " + e.getMessage());
+            throw e;
         }
     }
 
