@@ -27,6 +27,6 @@ Thumbs.db
 # Java
 *.class
 
-# Other
+# Temporary files
 *.swp
 *.swo
