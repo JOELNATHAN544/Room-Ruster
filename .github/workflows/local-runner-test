@@ -1,0 +1,18 @@
+name: Test Local Runner
+
+on:
+  workflow_dispatch: # Allows you to run this manually from the Actions tab
+
+jobs:
+  test:
+    runs-on: joel-local-runner
+    steps:
+      - name: Hello from Local Runner
+        run: |
+          echo "🚀 Success! The job is running on your local machine."
+          echo "Host: $(hostname)"
+          echo "OS: $(cat /etc/os-release | grep PRETTY_NAME)"
+          echo "Today is: $(date)"
+
+      - name: Proof of Life
+        run: echo "The runner is alive and scaling!"
